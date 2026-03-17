@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>호치민시한국국제학교 생기부 분할기</title>
+    <title>호치민시한국국제학교 생기부 분할 및 인쇄기</title>
     
     <!-- Tailwind CSS (디자인 프레임워크) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,280 +18,365 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
-        /* 스크롤바 디자인 */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-        
         .drag-active { background-color: #eff6ff; border-color: #3b82f6; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans text-gray-800 flex flex-col items-center py-10">
 
-    <div class="max-w-3xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <!-- 헤더 영역 -->
         <div class="bg-blue-600 p-6 text-white text-center">
-            <h1 class="text-2xl font-bold tracking-tight">생활기록부 PDF 자동 분할기</h1>
+            <h1 class="text-2xl font-bold tracking-tight">생활기록부 PDF 자동 분할 및 일괄 인쇄기</h1>
             <p class="text-blue-100 mt-2 text-sm">호치민시한국국제학교 선생님들을 위한 업무 자동화 도구</p>
         </div>
 
         <div class="p-8">
-            <!-- 안내사항 -->
-            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-md">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-yellow-800">사용 전 확인사항</h3>
-                        <div class="mt-2 text-sm text-yellow-700">
-                            <ul class="list-disc pl-5 space-y-1">
-                                <li>나이스에서 반 전체 생기부를 <b>하나의 PDF로 다운로드</b> 받은 파일을 준비하세요.</li>
-                                <li>모든 작업은 선생님의 PC에서만 이루어지며, 외부로 파일이 전송되지 않아 보안상 안전합니다.</li>
-                            </ul>
-                        </div>
+            <!-- 1. 파일 업로드 섹션 -->
+            <div id="step1" class="mb-8">
+                <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center transition-colors duration-200 ease-in-out cursor-pointer hover:bg-gray-50 mb-6">
+                    <input type="file" id="fileInput" class="hidden" accept="application/pdf" />
+                    <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <p class="text-lg font-medium text-gray-700">클릭하여 반 전체 생기부 PDF 선택</p>
+                    <p id="fileNameDisplay" class="mt-4 text-sm font-bold text-blue-600 hidden"></p>
+                </div>
+
+                <button id="processBtn" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
+                    <span id="btnText">분할 작업 시작</span>
+                </button>
+            </div>
+
+            <!-- 로그 영역 -->
+            <div class="mb-8">
+                <div id="logArea" class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-lg h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">준비 대기 중... 파일 업로드 후 시작 버튼을 눌러주세요.</div>
+            </div>
+
+            <!-- 2. 인쇄 관리 섹션 (분할 완료 후 표시됨) -->
+            <div id="printSection" class="hidden border-t border-gray-200 pt-8 mt-4 animate-fade-in-up">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    분할 완료 및 후속 작업 선택
+                </h2>
+
+                <!-- 전체 다운로드 옵션 -->
+                <div class="mb-8">
+                    <button id="downloadZipBtn" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-3 px-4 rounded-lg shadow-sm transition-colors text-base flex justify-center items-center border border-blue-200">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        전체 학생 개별 PDF를 ZIP 파일로 다운로드
+                    </button>
+                </div>
+                
+                <!-- 인쇄 옵션 -->
+                <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-5 mb-6">
+                    <span class="block text-sm font-bold text-indigo-900 mb-3">인쇄 보정 옵션 선택 (학생 섞임 방지)</span>
+                    <div class="space-y-2">
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="radio" name="printOption" value="none" class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <span class="block text-sm font-medium text-gray-800">보정 안 함</span>
+                                <span class="block text-xs text-gray-500">단면 인쇄를 하거나, 연속 출력할 때 사용합니다.</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="radio" name="printOption" value="duplex" class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500" checked>
+                            <div>
+                                <span class="block text-sm font-medium text-gray-800">일반 양면 인쇄 보정</span>
+                                <span class="block text-xs text-indigo-700">마지막이 홀수 페이지로 끝나면 <b>빈 페이지 1장을 추가</b>합니다. (페이지 수를 2의 배수로 맞춤)</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="radio" name="printOption" value="duplex2up" class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <span class="block text-sm font-medium text-gray-800">2쪽 모아찍기 + 양면 인쇄 보정</span>
+                                <span class="block text-xs text-indigo-700">한 장에 총 4쪽(앞면 2쪽, 뒷면 2쪽)이 들어가므로, <b>빈 페이지를 최대 3장까지 추가</b>합니다. (페이지 수를 4의 배수로 맞춤)</span>
+                            </div>
+                        </label>
                     </div>
                 </div>
-            </div>
 
-            <!-- 파일 업로드 영역 -->
-            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center transition-colors duration-200 ease-in-out cursor-pointer hover:bg-gray-50 mb-6">
-                <input type="file" id="fileInput" class="hidden" accept="application/pdf" />
-                <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <p class="text-lg font-medium text-gray-700">클릭하여 PDF 파일 선택</p>
-                <p class="text-sm text-gray-500 mt-1">또는 파일을 이곳으로 드래그 앤 드롭 하세요</p>
-                <p id="fileNameDisplay" class="mt-4 text-sm font-bold text-blue-600 hidden"></p>
-            </div>
+                <!-- 학생 목록 -->
+                <div class="mb-2 flex justify-between items-center px-1">
+                    <span class="text-sm font-semibold text-gray-700">출력할 학생 선택</span>
+                    <button id="toggleAllBtn" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 px-3 rounded">전체 해제</button>
+                </div>
+                <div id="studentChecklist" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 border border-gray-200 rounded-lg p-4 max-h-60 overflow-y-auto bg-gray-50 mb-6">
+                    <!-- 자바스크립트로 체크박스가 생성되는 영역 -->
+                </div>
 
-            <!-- 실행 버튼 -->
-            <button id="processBtn" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
-                <span id="btnText">분할 및 압축(ZIP) 다운로드 시작</span>
-                <svg id="loadingSpinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </button>
-
-            <!-- 로그(진행상황) 출력 영역 -->
-            <div class="mt-8">
-                <h3 class="text-sm font-semibold text-gray-700 mb-2">작업 진행 상황</h3>
-                <div id="logArea" class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-lg h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">준비 대기 중...</div>
+                <button id="createPrintPdfBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-lg shadow-md transition-colors text-lg flex justify-center items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    선택 학생 일괄 인쇄용 파일 열기
+                </button>
+                <p class="text-center text-xs text-gray-500 mt-3">※ 버튼을 누르면 새 창에 통합 PDF가 열립니다. 해당 창에서 인쇄(Ctrl+P)를 누르시고 <b>'모아찍기' 및 '양면 인쇄'</b>를 설정하세요.</p>
             </div>
         </div>
     </div>
 
     <script>
-        // PDF.js 워커 설정 (텍스트 추출용)
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        // DOM 요소
+        // DOM 요소들
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
         const processBtn = document.getElementById('processBtn');
         const btnText = document.getElementById('btnText');
-        const loadingSpinner = document.getElementById('loadingSpinner');
         const logArea = document.getElementById('logArea');
+        const printSection = document.getElementById('printSection');
+        const studentChecklist = document.getElementById('studentChecklist');
+        const toggleAllBtn = document.getElementById('toggleAllBtn');
+        const createPrintPdfBtn = document.getElementById('createPrintPdfBtn');
+        const downloadZipBtn = document.getElementById('downloadZipBtn');
 
         let selectedFile = null;
+        let processedStudentsData = []; // 분할된 각 학생의 PDF 데이터를 메모리에 임시 저장
 
-        // 로그 출력 함수
         function log(message) {
             const time = new Date().toLocaleTimeString('ko-KR', { hour12: false });
             logArea.textContent += `\n[${time}] ${message}`;
             logArea.scrollTop = logArea.scrollHeight;
         }
 
-        // 파일 선택 이벤트 처리
+        // --- 1단계: 파일 업로드 및 분할 ---
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFileSelect(e.target.files[0]);
-            }
+            if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
         });
-
-        // 드래그 앤 드롭 이벤트 처리
         dropZone.addEventListener('click', () => fileInput.click());
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-active');
-        });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-active'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-active'));
         dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-active');
-            if (e.dataTransfer.files.length > 0) {
-                handleFileSelect(e.dataTransfer.files[0]);
-            }
+            e.preventDefault(); dropZone.classList.remove('drag-active');
+            if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files[0]);
         });
 
         function handleFileSelect(file) {
-            if (file.type !== 'application/pdf') {
-                alert('PDF 파일만 업로드 가능합니다.');
-                return;
-            }
+            if (file.type !== 'application/pdf') return alert('PDF 파일만 업로드 가능합니다.');
             selectedFile = file;
             fileNameDisplay.textContent = `선택된 파일: ${file.name}`;
             fileNameDisplay.classList.remove('hidden');
             processBtn.disabled = false;
-            log(`파일 선택 완료: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            printSection.classList.add('hidden'); // 새 파일 선택 시 인쇄 섹션 숨김
+            log(`파일 로드됨: ${file.name}`);
         }
 
-        // 메인 프로세스 실행
         processBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
-
-            // UI 상태 변경
             processBtn.disabled = true;
-            btnText.textContent = '처리 중... (브라우저를 닫지 마세요)';
-            loadingSpinner.classList.remove('hidden');
+            btnText.textContent = '분할 처리 중...';
             logArea.textContent = '🚀 작업을 시작합니다...';
+            processedStudentsData = []; // 초기화
 
             try {
-                // 1단계: 파일을 ArrayBuffer로 읽기
-                log('PDF 파일을 메모리로 불러오는 중...');
                 const arrayBuffer = await selectedFile.arrayBuffer();
-
-                // 2단계: PDF.js를 이용해 텍스트 분석 및 학생별 페이지 범위 찾기
-                log('문서 내 학생 성명 및 페이지 범위 분석 중...');
                 const students = await findStudentsInPDF(arrayBuffer);
                 
-                if (students.length === 0) {
-                    throw new Error("학생 이름을 찾을 수 없습니다. (검색 조건: '성명 : 홍길동') 문서를 다시 확인해주세요.");
-                }
+                if (students.length === 0) throw new Error("학생 이름을 찾을 수 없습니다.");
                 
-                log(`총 ${students.length}명의 학생을 인식했습니다.`);
+                await splitPDF(arrayBuffer, students);
 
-                // 3단계: PDF-lib를 이용해 개별 PDF로 분할 및 JSZip으로 압축
-                log('개별 파일 분할 및 ZIP 압축을 시작합니다...');
-                await splitAndZipPDF(arrayBuffer, students, selectedFile.name);
-
-                log('🎉 모든 작업이 성공적으로 완료되었습니다! ZIP 파일이 다운로드됩니다.');
+                log('🎉 분할이 완료되었습니다. ZIP으로 다운로드하거나 일괄 인쇄할 학생을 선택하세요.');
+                buildStudentChecklist(); // 체크박스 UI 생성
+                printSection.classList.remove('hidden'); // 인쇄 섹션 표시
                 
             } catch (error) {
-                console.error(error);
-                log(`❌ 오류 발생: ${error.message}`);
-                alert(`오류가 발생했습니다:\n${error.message}`);
+                log(`❌ 오류: ${error.message}`);
+                alert(`오류: ${error.message}`);
             } finally {
-                // UI 상태 복구
                 processBtn.disabled = false;
-                btnText.textContent = '분할 및 압축(ZIP) 다운로드 시작';
-                loadingSpinner.classList.add('hidden');
+                btnText.textContent = '다시 분할하기';
             }
         });
 
-        // 학생 이름 및 페이지 범위 찾는 함수
         async function findStudentsInPDF(arrayBuffer) {
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
             const numPages = pdf.numPages;
             const students = [];
-            
-            // 파이썬 코드의 정규식을 JS에 맞게 변형 (공백을 모두 제거한 후 매칭하여 정확도 향상)
             const namePattern = /성명:([가-힣]{2,5})/; 
-            
             let currentStudent = null;
 
             for (let i = 1; i <= numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
-                
-                // 페이지 내 모든 텍스트를 공백 없이 하나로 합침
-                const rawText = textContent.items.map(item => item.str).join('');
-                const cleanText = rawText.replace(/\s+/g, ''); // 띄어쓰기 제거
-                
+                const cleanText = textContent.items.map(item => item.str).join('').replace(/\s+/g, '');
                 const match = cleanText.match(namePattern);
                 
                 if (match) {
-                    let name = match[1];
-                    name = name.replace(/성별/g, ''); // 이름에 포함된 '성별' 글자 제거
-                    
-                    // 새로운 학생의 이름을 발견했을 때
+                    let name = match[1].replace(/성별/g, ''); // 지난번 수정한 이름 정제 코드
                     if (!currentStudent || currentStudent.name !== name) {
-                        // 이전 학생의 끝 페이지 기록
                         if (currentStudent) {
                             currentStudent.endPage = i - 1;
                             students.push(currentStudent);
-                            log(`- 인식 완료: ${currentStudent.name} (${currentStudent.startPage} ~ ${currentStudent.endPage}p)`);
                         }
-                        // 새 학생 시작
                         currentStudent = { name: name, startPage: i, endPage: numPages };
                     }
                 }
             }
-            
-            // 마지막 학생 정보 저장
-            if (currentStudent) {
-                students.push(currentStudent);
-                log(`- 인식 완료: ${currentStudent.name} (${currentStudent.startPage} ~ ${currentStudent.endPage}p)`);
-            }
-
+            if (currentStudent) students.push(currentStudent);
             return students;
         }
 
-        // 개별 PDF 생성 및 ZIP 압축 함수
-        async function splitAndZipPDF(arrayBuffer, students, originalFileName) {
+        async function splitPDF(arrayBuffer, students) {
             const { PDFDocument } = PDFLib;
-            
-            // 원본 PDF 로드
             const originalPdf = await PDFDocument.load(arrayBuffer);
-            
-            // ZIP 파일 생성 준비
-            const zip = new JSZip();
-            
-            // 압축파일 내 폴더 이름 설정 (확장자 제외한 원본이름 + _분할)
-            const baseName = originalFileName.substring(0, originalFileName.lastIndexOf('.')) || originalFileName;
-            const folderName = `${baseName}_분할_생기부`;
-            const folder = zip.folder(folderName);
 
             for (let i = 0; i < students.length; i++) {
                 const student = students[i];
-                log(`[${i+1}/${students.length}] ${student.name} 학생 PDF 생성 중...`);
-                
-                // 새 PDF 문서 생성
                 const newPdf = await PDFDocument.create();
                 
-                // 복사할 페이지 인덱스 계산 (pdf-lib는 페이지가 0부터 시작함)
                 const pageIndices = [];
-                for (let p = student.startPage - 1; p <= student.endPage - 1; p++) {
-                    pageIndices.push(p);
-                }
+                for (let p = student.startPage - 1; p <= student.endPage - 1; p++) pageIndices.push(p);
                 
-                // 원본에서 페이지 복사 후 새 문서에 추가
                 const copiedPages = await newPdf.copyPages(originalPdf, pageIndices);
                 copiedPages.forEach((page) => newPdf.addPage(page));
-                
-                // 새 문서를 바이트 배열로 저장
                 const pdfBytes = await newPdf.save();
                 
-                // 파일명 지정: "01_홍길동_생기부.pdf" 형태로 정렬이 쉽도록 번호 부여
                 const fileNumber = String(i + 1).padStart(2, '0');
                 const newFileName = `${fileNumber}_${student.name}_생기부.pdf`;
-                
-                // 폴더 안에 파일 추가
-                folder.file(newFileName, pdfBytes);
-            }
 
-            log('모든 PDF 생성이 완료되었습니다. ZIP 파일로 압축합니다...');
-            
-            // ZIP 파일 생성 및 다운로드 트리거
-            const content = await zip.generateAsync({ type: "blob" });
-            const zipFileName = `${folderName}.zip`;
-            
-            // 다운로드를 위한 가짜 a 태그 생성 및 클릭
-            const url = URL.createObjectURL(content);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = zipFileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+                // ⭐ 인쇄 및 다운로드 기능을 위해 데이터를 메모리에 저장해둠
+                processedStudentsData.push({
+                    id: i,
+                    number: fileNumber,
+                    name: student.name,
+                    fileName: newFileName,
+                    bytes: pdfBytes,
+                    pageCount: pageIndices.length
+                });
+            }
         }
+
+        // --- 2단계: 일괄 인쇄 및 다운로드 처리 ---
+
+        // ZIP 다운로드 버튼 클릭 이벤트
+        downloadZipBtn.addEventListener('click', async () => {
+            if (processedStudentsData.length === 0) return;
+            
+            const originalHtml = downloadZipBtn.innerHTML;
+            downloadZipBtn.disabled = true;
+            downloadZipBtn.innerHTML = '<svg class="animate-spin w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ZIP 압축 중...';
+
+            try {
+                const zip = new JSZip();
+                const baseName = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || selectedFile.name;
+                const folderName = `${baseName}_분할_생기부`;
+                const folder = zip.folder(folderName);
+
+                processedStudentsData.forEach(student => {
+                    folder.file(student.fileName, student.bytes);
+                });
+
+                const content = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${folderName}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+                log('✅ 전체 학생 ZIP 파일 다운로드가 시작되었습니다.');
+            } catch (error) {
+                console.error(error);
+                alert('ZIP 생성 중 오류가 발생했습니다.');
+            } finally {
+                downloadZipBtn.disabled = false;
+                downloadZipBtn.innerHTML = originalHtml;
+            }
+        });
+
+        // 학생 체크박스 리스트 생성
+        function buildStudentChecklist() {
+            studentChecklist.innerHTML = '';
+            processedStudentsData.forEach(student => {
+                const label = document.createElement('label');
+                label.className = "flex items-center space-x-2 bg-white p-2 rounded border border-gray-200 shadow-sm cursor-pointer hover:bg-blue-50";
+                
+                // 페이지 수가 홀수면 시각적으로 경고 표시를 해줌
+                const pageWarning = student.pageCount % 2 !== 0 ? `<span class="text-xs text-red-500 font-bold ml-auto" title="홀수 페이지">(${student.pageCount}쪽)</span>` : `<span class="text-xs text-gray-400 ml-auto">(${student.pageCount}쪽)</span>`;
+
+                label.innerHTML = `
+                    <input type="checkbox" value="${student.id}" class="student-checkbox w-4 h-4 text-blue-600 rounded focus:ring-blue-500" checked>
+                    <span class="text-sm font-medium text-gray-700 truncate">${student.number} ${student.name}</span>
+                    ${pageWarning}
+                `;
+                studentChecklist.appendChild(label);
+            });
+            toggleAllBtn.textContent = '전체 해제';
+        }
+
+        // 전체 선택/해제 토글 버튼
+        toggleAllBtn.addEventListener('click', () => {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            const isAllChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !isAllChecked);
+            toggleAllBtn.textContent = isAllChecked ? '전체 선택' : '전체 해제';
+        });
+
+        // 선택 인쇄본 생성 버튼 클릭
+        createPrintPdfBtn.addEventListener('click', async () => {
+            const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+            if (checkboxes.length === 0) return alert('출력할 학생을 최소 1명 이상 선택해주세요.');
+
+            const originalBtnHtml = createPrintPdfBtn.innerHTML;
+            createPrintPdfBtn.disabled = true;
+            createPrintPdfBtn.innerHTML = '<svg class="animate-spin w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 인쇄용 통합 문서 생성 중...';
+
+            try {
+                const { PDFDocument } = PDFLib;
+                const mergedPdf = await PDFDocument.create();
+                const printOption = document.querySelector('input[name="printOption"]:checked').value;
+
+                for (let cb of checkboxes) {
+                    const studentId = parseInt(cb.value);
+                    const studentData = processedStudentsData.find(s => s.id === studentId);
+                    
+                    const studentPdf = await PDFDocument.load(studentData.bytes);
+                    const copiedPages = await mergedPdf.copyPages(studentPdf, studentPdf.getPageIndices());
+                    
+                    copiedPages.forEach(page => mergedPdf.addPage(page));
+
+                    // ⭐ 인쇄 옵션에 따른 빈 페이지 추가 로직
+                    let blanksToAdd = 0;
+                    if (printOption === 'duplex') {
+                        // 일반 양면인쇄: 2의 배수로 맞춤
+                        blanksToAdd = studentData.pageCount % 2 !== 0 ? 1 : 0;
+                    } else if (printOption === 'duplex2up') {
+                        // 모아찍기+양면인쇄: 4의 배수로 맞춤
+                        const remainder = studentData.pageCount % 4;
+                        blanksToAdd = remainder === 0 ? 0 : 4 - remainder;
+                    }
+
+                    if (blanksToAdd > 0) {
+                        const lastPage = copiedPages[copiedPages.length - 1];
+                        const { width, height } = lastPage.getSize();
+                        for (let i = 0; i < blanksToAdd; i++) {
+                            mergedPdf.addPage([width, height]);
+                        }
+                        log(`${studentData.name} 학생 뒤에 빈 페이지 ${blanksToAdd}장 추가됨`);
+                    }
+                }
+
+                // 완성된 통합 PDF를 브라우저 새 창으로 띄우기
+                const mergedBytes = await mergedPdf.save();
+                const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+                
+                // 새 탭에서 열기
+                window.open(blobUrl, '_blank');
+                log('🖨️ 인쇄용 창이 열렸습니다. 브라우저 인쇄 옵션을 활용해주세요.');
+
+            } catch (error) {
+                console.error(error);
+                alert('인쇄 파일 생성 중 오류가 발생했습니다.');
+            } finally {
+                createPrintPdfBtn.disabled = false;
+                createPrintPdfBtn.innerHTML = originalBtnHtml;
+            }
+        });
     </script>
 </body>
 </html>
