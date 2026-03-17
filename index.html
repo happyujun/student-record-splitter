@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>호치민시한국국제학교 생기부 분할기</title>
+    
+    <!-- Tailwind CSS (디자인 프레임워크) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PDF.js (PDF 텍스트 추출용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
+    <!-- pdf-lib (PDF 문서 분할/생성용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    
+    <!-- JSZip (ZIP 파일 압축용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <style>
+        /* 스크롤바 디자인 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        
+        .drag-active { background-color: #eff6ff; border-color: #3b82f6; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans text-gray-800 flex flex-col items-center py-10">
+
+    <div class="max-w-3xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- 헤더 영역 -->
+        <div class="bg-blue-600 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold tracking-tight">생활기록부 PDF 자동 분할기</h1>
+            <p class="text-blue-100 mt-2 text-sm">호치민시한국국제학교 선생님들을 위한 업무 자동화 도구</p>
+        </div>
+
+        <div class="p-8">
+            <!-- 안내사항 -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-md">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">사용 전 확인사항</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>나이스에서 반 전체 생기부를 <b>하나의 PDF로 다운로드</b> 받은 파일을 준비하세요.</li>
+                                <li>모든 작업은 선생님의 PC에서만 이루어지며, 외부로 파일이 전송되지 않아 보안상 안전합니다.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 파일 업로드 영역 -->
+            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center transition-colors duration-200 ease-in-out cursor-pointer hover:bg-gray-50 mb-6">
+                <input type="file" id="fileInput" class="hidden" accept="application/pdf" />
+                <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="text-lg font-medium text-gray-700">클릭하여 PDF 파일 선택</p>
+                <p class="text-sm text-gray-500 mt-1">또는 파일을 이곳으로 드래그 앤 드롭 하세요</p>
+                <p id="fileNameDisplay" class="mt-4 text-sm font-bold text-blue-600 hidden"></p>
+            </div>
+
+            <!-- 실행 버튼 -->
+            <button id="processBtn" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
+                <span id="btnText">분할 및 압축(ZIP) 다운로드 시작</span>
+                <svg id="loadingSpinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+
+            <!-- 로그(진행상황) 출력 영역 -->
+            <div class="mt-8">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">작업 진행 상황</h3>
+                <div id="logArea" class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-lg h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">준비 대기 중...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js 워커 설정 (텍스트 추출용)
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // DOM 요소
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const processBtn = document.getElementById('processBtn');
+        const btnText = document.getElementById('btnText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const logArea = document.getElementById('logArea');
+
+        let selectedFile = null;
+
+        // 로그 출력 함수
+        function log(message) {
+            const time = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+            logArea.textContent += `\n[${time}] ${message}`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 파일 선택 이벤트 처리
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        // 드래그 앤 드롭 이벤트 처리
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-active');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-active'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-active');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (file.type !== 'application/pdf') {
+                alert('PDF 파일만 업로드 가능합니다.');
+                return;
+            }
+            selectedFile = file;
+            fileNameDisplay.textContent = `선택된 파일: ${file.name}`;
+            fileNameDisplay.classList.remove('hidden');
+            processBtn.disabled = false;
+            log(`파일 선택 완료: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+        }
+
+        // 메인 프로세스 실행
+        processBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // UI 상태 변경
+            processBtn.disabled = true;
+            btnText.textContent = '처리 중... (브라우저를 닫지 마세요)';
+            loadingSpinner.classList.remove('hidden');
+            logArea.textContent = '🚀 작업을 시작합니다...';
+
+            try {
+                // 1단계: 파일을 ArrayBuffer로 읽기
+                log('PDF 파일을 메모리로 불러오는 중...');
+                const arrayBuffer = await selectedFile.arrayBuffer();
+
+                // 2단계: PDF.js를 이용해 텍스트 분석 및 학생별 페이지 범위 찾기
+                log('문서 내 학생 성명 및 페이지 범위 분석 중...');
+                const students = await findStudentsInPDF(arrayBuffer);
+                
+                if (students.length === 0) {
+                    throw new Error("학생 이름을 찾을 수 없습니다. (검색 조건: '성명 : 홍길동') 문서를 다시 확인해주세요.");
+                }
+                
+                log(`총 ${students.length}명의 학생을 인식했습니다.`);
+
+                // 3단계: PDF-lib를 이용해 개별 PDF로 분할 및 JSZip으로 압축
+                log('개별 파일 분할 및 ZIP 압축을 시작합니다...');
+                await splitAndZipPDF(arrayBuffer, students, selectedFile.name);
+
+                log('🎉 모든 작업이 성공적으로 완료되었습니다! ZIP 파일이 다운로드됩니다.');
+                
+            } catch (error) {
+                console.error(error);
+                log(`❌ 오류 발생: ${error.message}`);
+                alert(`오류가 발생했습니다:\n${error.message}`);
+            } finally {
+                // UI 상태 복구
+                processBtn.disabled = false;
+                btnText.textContent = '분할 및 압축(ZIP) 다운로드 시작';
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+
+        // 학생 이름 및 페이지 범위 찾는 함수
+        async function findStudentsInPDF(arrayBuffer) {
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const numPages = pdf.numPages;
+            const students = [];
+            
+            // 파이썬 코드의 정규식을 JS에 맞게 변형 (공백을 모두 제거한 후 매칭하여 정확도 향상)
+            const namePattern = /성명:([가-힣]{2,5})/; 
+            
+            let currentStudent = null;
+
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                
+                // 페이지 내 모든 텍스트를 공백 없이 하나로 합침
+                const rawText = textContent.items.map(item => item.str).join('');
+                const cleanText = rawText.replace(/\s+/g, ''); // 띄어쓰기 제거
+                
+                const match = cleanText.match(namePattern);
+                
+                if (match) {
+                    let name = match[1];
+                    name = name.replace(/성별/g, ''); // 이름에 포함된 '성별' 글자 제거
+                    
+                    // 새로운 학생의 이름을 발견했을 때
+                    if (!currentStudent || currentStudent.name !== name) {
+                        // 이전 학생의 끝 페이지 기록
+                        if (currentStudent) {
+                            currentStudent.endPage = i - 1;
+                            students.push(currentStudent);
+                            log(`- 인식 완료: ${currentStudent.name} (${currentStudent.startPage} ~ ${currentStudent.endPage}p)`);
+                        }
+                        // 새 학생 시작
+                        currentStudent = { name: name, startPage: i, endPage: numPages };
+                    }
+                }
+            }
+            
+            // 마지막 학생 정보 저장
+            if (currentStudent) {
+                students.push(currentStudent);
+                log(`- 인식 완료: ${currentStudent.name} (${currentStudent.startPage} ~ ${currentStudent.endPage}p)`);
+            }
+
+            return students;
+        }
+
+        // 개별 PDF 생성 및 ZIP 압축 함수
+        async function splitAndZipPDF(arrayBuffer, students, originalFileName) {
+            const { PDFDocument } = PDFLib;
+            
+            // 원본 PDF 로드
+            const originalPdf = await PDFDocument.load(arrayBuffer);
+            
+            // ZIP 파일 생성 준비
+            const zip = new JSZip();
+            
+            // 압축파일 내 폴더 이름 설정 (확장자 제외한 원본이름 + _분할)
+            const baseName = originalFileName.substring(0, originalFileName.lastIndexOf('.')) || originalFileName;
+            const folderName = `${baseName}_분할_생기부`;
+            const folder = zip.folder(folderName);
+
+            for (let i = 0; i < students.length; i++) {
+                const student = students[i];
+                log(`[${i+1}/${students.length}] ${student.name} 학생 PDF 생성 중...`);
+                
+                // 새 PDF 문서 생성
+                const newPdf = await PDFDocument.create();
+                
+                // 복사할 페이지 인덱스 계산 (pdf-lib는 페이지가 0부터 시작함)
+                const pageIndices = [];
+                for (let p = student.startPage - 1; p <= student.endPage - 1; p++) {
+                    pageIndices.push(p);
+                }
+                
+                // 원본에서 페이지 복사 후 새 문서에 추가
+                const copiedPages = await newPdf.copyPages(originalPdf, pageIndices);
+                copiedPages.forEach((page) => newPdf.addPage(page));
+                
+                // 새 문서를 바이트 배열로 저장
+                const pdfBytes = await newPdf.save();
+                
+                // 파일명 지정: "01_홍길동_생기부.pdf" 형태로 정렬이 쉽도록 번호 부여
+                const fileNumber = String(i + 1).padStart(2, '0');
+                const newFileName = `${fileNumber}_${student.name}_생기부.pdf`;
+                
+                // 폴더 안에 파일 추가
+                folder.file(newFileName, pdfBytes);
+            }
+
+            log('모든 PDF 생성이 완료되었습니다. ZIP 파일로 압축합니다...');
+            
+            // ZIP 파일 생성 및 다운로드 트리거
+            const content = await zip.generateAsync({ type: "blob" });
+            const zipFileName = `${folderName}.zip`;
+            
+            // 다운로드를 위한 가짜 a 태그 생성 및 클릭
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = zipFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
